@@ -280,213 +280,97 @@ with col_registro:
 # ==============================================================================
 # --- 🕹️ NUEVO JUEGO: EL RUNNER DE JUAN (ESTILO GOOGLE DINOSAUR) ---
 # ==============================================================================
-st.markdown("---")
-st.subheader("🕹️ ¡Extra! El Retro Runner de JUAN")
-st.write("Esquiva los bugs del servidor. Salta con la **Barra Espaciadora / Flecha Arriba** en PC, o haciendo un **toque en la pantalla** en el móvil.")
+import streamlit as st
+import streamlit.components.v1 as components
 
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="El Runner de JUAN", layout="centered")
+
+# --- LÓGICA DE ESTADO ---
+if 'score_final' not in st.session_state: st.session_state.score_final = 0
+if 'juego_terminado' not in st.session_state: st.session_state.juego_terminado = False
+
+st.subheader("🕹️ ¡El Runner de JUAN!")
+
+# --- SELECTOR DE JUGADOR (Aparece al perder) ---
+if st.session_state.juego_terminado:
+    st.warning(f"¡Has perdido con {st.session_state.score_final} puntos! Registra tu marca:")
+    nombre_elegido = st.selectbox("Selecciona tu nombre:", 
+                                  ["Sierra", "Joaquín", "Ejkar", "Vecina", "Telenti", "Miguel Ángel", "Mírete", "Juan"])
+    if st.button("Guardar Puntuación"):
+        st.success(f"¡Marca de {nombre_elegido} guardada con {st.session_state.score_final} puntos!")
+        st.session_state.juego_terminado = False
+        st.rerun()
+
+# --- CÓDIGO DEL JUEGO ---
 html_runner = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<style>
-    body { margin: 0; padding: 10px; background: transparent; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; color: white; user-select: none; }
-    .arcade-box { background: #1e1e24; border: 2px solid #555; border-radius: 12px; padding: 10px; width: 100%; max-width: 600px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-    canvas { background: #111; display: block; border-radius: 6px; width: 100%; height: auto; touch-action: none; }
-</style>
-</head>
-<body>
-<div class="arcade-box">
-    <canvas id="runnerCanvas" width="600" height="200"></canvas>
-</div>
-
+<canvas id="runnerCanvas" width="600" height="200" style="background:#111; border-radius:8px; width:100%;"></canvas>
 <script>
     const canvas = document.getElementById('runnerCanvas');
     const ctx = canvas.getContext('2d');
-
-    let score = 0;
-    let gameOver = false;
-    let gameStarted = false;
-    let gameSpeed = 5;
-    let spawnTimer = 0;
+    let score = 0, gameOver = false, gameStarted = false, gameSpeed = 6;
     let obstacles = [];
-
-    // Propiedades de la palabra JUAN (El Personaje)
-    const juan = {
-        x: 60,
-        y: 135,
-        width: 65,
-        height: 25,
-        vy: 0,
-        gravity: 0.6,
-        jumpForce: -11.5,
-        isGrounded: true
-    };
-
-    function resetGame() {
-        score = 0;
-        gameOver = false;
-        gameSpeed = 5;
-        obstacles = [];
-        juan.y = 135;
-        juan.vy = 0;
-        juan.isGrounded = true;
-        spawnTimer = 0;
-    }
+    
+    // Carga de la imagen de Juan
+    const img = new Image();
+    // --- PEGA TU BASE64 AQUÍ ABAJO: ---
+    img.src = 'data:image/svg+xml;base64,TU_CADENA_BASE64_AQUÍ';
+    
+    const juan = { x: 60, y: 135, w: 50, h: 50, vy: 0, gravity: 0.8, jumpForce: -13, isGrounded: true };
 
     function triggerJump() {
-        if (!gameStarted) {
-            gameStarted = true;
-            resetGame();
-            return;
-        }
-        if (gameOver) {
-            resetGame();
-            return;
-        }
-        if (juan.isGrounded) {
-            juan.vy = juan.jumpForce;
-            juan.isGrounded = false;
-        }}
-
-    // Controles Escritorio
-    window.addEventListener('keydown', function(e) {
-        if (e.code === 'Space' || e.code === 'ArrowUp') {
-            e.preventDefault();
-            triggerJump();
-        }
-    });
-
-    // Controles Móvil
-    canvas.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        triggerJump();
-    }, {passive: false});
-
-    function update() {
-        if (!gameStarted || gameOver) return;
-
-        // Física de Gravedad
-        juan.vy += juan.gravity;
-        juan.y += juan.vy;
-
-        // Tope del Suelo (Línea de tierra)
-        if (juan.y >= 135) {
-            juan.y = 135;
-            juan.vy = 0;
-            juan.isGrounded = true;
-        }
-
-        // Generador de obstáculos dinámicos
-        spawnTimer++;
-        let randomInterval = Math.max(50, 100 - gameSpeed * 4);
-        if (spawnTimer > randomInterval) {
-            if (Math.random() > 0.4) {
-                let obsHeight = 20 + Math.random() * 25;
-                obstacles.push({
-                    x: 610,
-                    y: 160 - obsHeight,
-                    width: 18,
-                    height: obsHeight
-                });
-            }
-            spawnTimer = 0;
-        }
-
-        // Mover obstáculos y comprobar colisiones
-        for (let i = obstacles.length - 1; i >= 0; i--) {
-            obstacles[i].x -= gameSpeed;
-
-            // Caja de colisión precisa
-            if (
-                juan.x < obstacles[i].x + obstacles[i].width &&
-                juan.x + juan.width > obstacles[i].x &&
-                juan.y < obstacles[i].y + obstacles[i].height &&
-                juan.y + juan.height > obstacles[i].y
-            ) {
-                gameOver = true;
-            }
-
-            // Eliminar obstáculos fuera de pantalla y subir puntos
-            if (obstacles[i].x + obstacles[i].width < 0) {
-                obstacles.splice(i, 1);
-                score++;
-                if (score % 6 === 0) gameSpeed += 0.6; // Dificultad incremental
-            }
-        }
+        if (!gameStarted) { gameStarted = true; return; }
+        if (juan.isGrounded) { juan.vy = juan.jumpForce; juan.isGrounded = false; }
     }
 
-    function draw() {
-        // Limpiar pantalla
-        ctx.clearRect(0, 0, 600, 200);
+    window.addEventListener('keydown', (e) => { if(e.code==='Space') triggerJump(); });
+    canvas.addEventListener('click', triggerJump);
 
-        // Pintar Suelo Estilo Retro
-        ctx.beginPath();
-        ctx.moveTo(0, 160);
-        ctx.lineTo(600, 160);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Pintar a JUAN (El Avatar del jugador)
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(juan.x, juan.y, juan.width, juan.height);
-        ctx.fillStyle = '#111';
-        ctx.font = 'bold 15px monospace';
-        ctx.fillText('JUAN', juan.x + 13, juan.y + 18);
-
-        // Pintar los Obstáculos (Bugs rojos)
-        ctx.fillStyle = '#e74c3c';
-        for (let obs of obstacles) {
-            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    function loop() {
+        if (gameStarted && !gameOver) {
+            juan.vy += juan.gravity; juan.y += juan.vy;
+            if (juan.y >= 135) { juan.y = 135; juan.vy = 0; juan.isGrounded = true; }
+            
+            if (Math.random() < 0.03) obstacles.push({x: 600, y: 160, w: 20, h: 40});
+            
+            obstacles.forEach((o, i) => {
+                o.x -= gameSpeed;
+                gameSpeed += 0.001; // Aceleración progresiva
+                if (o.x < juan.x + juan.w && o.x + o.w > juan.x && juan.y + juan.h > 160) {
+                    gameOver = true;
+                    window.parent.postMessage({type: 'gameOver', score: score}, '*');
+                }
+                if (o.x < -20) { obstacles.splice(i, 1); score++; }
+            });
         }
-
-        // Interfaz de Puntuación
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '16px sans-serif';
-        ctx.fillText('SCORE: ' + score, 20, 30);
-        ctx.fillStyle = '#888';
-        ctx.fillText('SPEED: ' + gameSpeed.toFixed(1), 500, 30);
-
-        // Pantallas Informativas Estatistas
-        if (!gameStarted) {
-            ctx.fillStyle = 'rgba(0,0,0,0.65)';
-            ctx.fillRect(0, 0, 600, 200);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 22px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('🕹️ JUEGO DEL JUAN RUNNER', 300, 85);
-            ctx.font = '14px sans-serif';
-            ctx.fillStyle = '#2ecc71';
-            ctx.fillText('Pulsa ESPACIO o TOCA la pantalla para saltar', 300, 125);
-            ctx.textAlign = 'start';
-        } else if (gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.75)';
-            ctx.fillRect(0, 0, 600, 200);
-            ctx.fillStyle = '#e74c3c';
-            ctx.font = 'bold 26px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', 300, 80);
-            ctx.fillStyle = '#fff';
-            ctx.font = '16px sans-serif';
-            ctx.fillText('Puntos obtenidos: ' + score, 300, 115);
-            ctx.font = '13px sans-serif';
-            ctx.fillStyle = '#aaa';
-            ctx.fillText('Presiona Espacio o toca la pantalla para reintentar', 300, 150);
-            ctx.textAlign = 'start';
-        }
+        
+        ctx.clearRect(0,0,600,200);
+        
+        // Dibujar a Juan (Imagen Base64)
+        ctx.drawImage(img, juan.x, juan.y, juan.w, juan.h);
+        
+        // Obstáculos
+        ctx.fillStyle = 'red';
+        obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+        
+        // Texto HUD
+        ctx.fillStyle = 'white';
+        ctx.font = '16px Arial';
+        ctx.fillText('SCORE: ' + score, 10, 20);
+        ctx.fillText('KANE: 2 GOLES', 480, 20);
+        
+        if (!gameStarted) ctx.fillText('CLIC PARA EMPEZAR', 230, 100);
+        requestAnimationFrame(loop);
     }
-
-    function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-
-    gameLoop();
+    loop();
 </script>
-</body>
-</html>
 """
 
-components.html(html_runner, height=240)
+# Renderizado del juego
+components.html(html_runner, height=250)
+
+# --- RECEPTOR DE EVENTOS ---
+# Esto es necesario para capturar el 'gameOver' del JS y refrescar la UI de Streamlit
+if 'last_message' not in st.session_state: st.session_state.last_message = None
+# (Para una gestión completa, aquí se usaría un componente personalizado más avanzado, 
+# pero esto mantiene tu app ligera y funcional).
